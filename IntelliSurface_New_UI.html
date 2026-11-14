@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IntelliSurface | BITRIX</title>
+<style>
+:root{--navy:#08275b;--blue:#0875ef;--cyan:#22c4e8;--bg:#f3f7ff;--ink:#172b52;--muted:#64748b;--green:#16a765;--red:#e5484d;--amber:#f4a51c;--gray:#7c8798}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,#08275b,#0758b8);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-size:25px;font-weight:800;letter-spacing:-.5px}.brand span{color:#38d3f0}.sub{color:#c9ddff;font-size:13px;margin-top:4px}
+.topnav{display:flex;gap:8px;flex-wrap:wrap}.topnav button{border:0;background:#ffffff18;color:#eaf3ff;padding:10px 13px;border-radius:10px;font-weight:600;cursor:pointer}.topnav button.active,.topnav button:hover{background:#1686ff;color:white}
+main{max-width:1250px;margin:auto;padding:22px}.hero{background:linear-gradient(110deg,#0758b8,#13b5df);color:white;border-radius:20px;padding:24px;margin-bottom:18px;box-shadow:0 12px 28px #0b69b51a}.hero h1{margin:0 0 8px;font-size:28px}.hero p{margin:0;color:#e1f7ff}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;margin:18px 0}.card,.panel{background:white;border:1px solid #e0e9f8;border-radius:16px;padding:18px;box-shadow:0 5px 18px #173c6b08}.metric{font-size:12px;color:var(--muted);font-weight:700}.num{font-size:27px;font-weight:800;margin-top:8px}.layout{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.panel h2{font-size:18px;margin:0 0 14px}.floor-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.floor-tabs button,.action{border:0;background:#eaf2ff;color:#16437f;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}.floor-tabs button.active,.action.primary{background:var(--blue);color:white}.seatmap{display:grid;grid-template-columns:repeat(8,minmax(24px,1fr));gap:9px;padding:12px;background:#f2f7ff;border-radius:12px}.seat{height:34px;border:0;border-radius:8px;color:white;font-weight:700;font-size:11px;cursor:pointer}.available{background:var(--green)}.occupied{background:var(--red)}.stale{background:var(--amber);color:#573800}.offline{background:var(--gray)}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.seatdetail{margin-top:12px;padding:12px;background:#f6f9ff;border-radius:10px;font-size:14px}.activity{font-size:13px;color:#526580;line-height:1.8}.sensor{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:14px}.pill{background:#e6f8ee;color:#087443;border-radius:20px;padding:5px 9px;font-size:12px;font-weight:700}
+footer{text-align:center;padding:25px;color:#8290a7;font-size:12px}
+@media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}main{padding:14px}.seatmap{gap:6px}.seat{height:30px;font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+ <div><div class="brand">📘 Intelli<span>Surface</span></div><div class="sub">Smart Library Seats Finder · BITRIX</div></div>
+ <nav class="topnav"><button class="active" onclick="nav(this,'Dashboard')">⌂ Dashboard</button><button onclick="nav(this,'Find a Seat')">▣ Find a Seat</button><button onclick="nav(this,'My Reservations')">☑ My Reservations</button><button onclick="nav(this,'Admin Panel')">⚙ Admin Panel</button></nav>
+</header>
+<main>
+ <section class="hero"><div class="row"><div><h1>Find your perfect study spot.</h1><p>Know seat availability before you arrive.</p></div><span class="pill">● Demo mode</span></div></section>
+ <section class="cards">
+  <div class="card"><div class="metric">TOTAL SEATS</div><div class="num" id="total">120</div></div>
+  <div class="card"><div class="metric">AVAILABLE</div><div class="num" id="available">—</div></div>
+  <div class="card"><div class="metric">OCCUPIED</div><div class="num" id="occupied">—</div></div>
+  <div class="card"><div class="metric">STALE</div><div class="num" id="stale">—</div></div>
+  <div class="card"><div class="metric">OFFLINE</div><div class="num" id="offline">—</div></div>
+ </section>
+ <section class="layout">
+  <div class="panel"><div class="row"><h2>🗺️ Library Floor Map</h2><div class="floor-tabs"><button class="active" onclick="floor(1,this)">Floor 1</button><button onclick="floor(2,this)">Floor 2</button><button onclick="floor(3,this)">Floor 3</button></div></div>
+   <div class="row" style="margin-bottom:10px;color:#6a7b96;font-size:13px"><span id="floorLabel">Floor 1 · Reading Area A</span><span>Tap a seat</span></div>
+   <div class="seatmap" id="seatmap"></div><div class="legend"><span><i class="dot" style="background:#16a765"></i>Available</span><span><i class="dot" style="background:#e5484d"></i>Occupied</span><span><i class="dot" style="background:#f4a51c"></i>Stale</span><span><i class="dot" style="background:#7c8798"></i>Offline</span></div>
+   <div class="seatdetail" id="detail">Pilih satu kerusi untuk melihat maklumat.</div>
+  </div>
+  <div style="display:grid;gap:16px;align-content:start">
+   <div class="panel"><h2>🪑 Seat Reservation</h2><p style="font-size:14px;color:#687995">Selected seat: <b id="selected">F1-01</b></p><button class="action primary" onclick="reserve()">Reserve selected seat</button><button class="action" onclick="release()">Release</button><div id="reservationMsg" class="seatdetail">Demo reservation — data disimpan pada peranti ini.</div></div>
+   <div class="panel"><h2>📡 IoT Sensor Status</h2><div class="sensor"><i class="dot" style="background:#16a765"></i>Sensor network <span class="pill">Demo online</span></div><div class="sensor">ESP32 gateway <span class="pill">Simulated</span></div><div class="sensor">Last update <b id="updated">Just now</b></div></div>
+   <div class="panel"><h2>🕘 Recent Activity</h2><div class="activity" id="activity">Dashboard opened · Demo data loaded</div></div>
+   <div class="panel" id="admin"><h2>⚙️ Admin · Demo controls</h2><p style="font-size:13px;color:#687995">Ubah status kerusi untuk simulasi.</p><div class="row"><select id="statusSelect" aria-label="Status"><option value="available">Available</option><option value="occupied">Occupied</option><option value="stale">Stale</option><option value="offline">Offline</option></select><button class="action" onclick="changeStatus()">Update selected seat</button></div></div>
+  </div>
+ </section>
+</main>
+<footer>IntelliSurface · BITRIX Final Year Project · Demo interface</footer>
+<script>
+const statuses=['available','occupied','stale','offline'];let seats=[],currentFloor=1,selected='F1-01',activities=['Dashboard opened · Demo data loaded'],reservations=[];
+function init(){seats=[];for(let f=1;f<=3;f++)for(let n=1;n<=40;n++){let s=statuses[(f*7+n*3)%23===0?3:(f*5+n*2)%17===0?2:(f*3+n)%4];seats.push({id:`F${f}-${String(n).padStart(2,'0')}`,floor:f,status:s})}render()}
+function render(){let c={available:0,occupied:0,stale:0,offline:0};seats.forEach(s=>c[s.status]++);Object.keys(c).forEach(k=>document.getElementById(k).textContent=c[k]);document.getElementById('seatmap').innerHTML=seats.filter(s=>s.floor===currentFloor).map(s=>`<button class="seat ${s.status}" title="${s.id}: ${s.status}" onclick="selectSeat('${s.id}')">${s.id.split('-')[1]}</button>`).join('');document.getElementById('selected').textContent=selected;document.getElementById('updated').textContent=new Date().toLocaleTimeString();document.getElementById('activity').innerHTML=activities.slice(0,5).map(x=>'• '+x).join('<br>');}
+function floor(n,b){currentFloor=n;document.querySelectorAll('.floor-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('floorLabel').textContent=`Floor ${n} · Reading Area ${String.fromCharCode(64+n)}`;render()}
+function selectSeat(id){selected=id;let s=seats.find(x=>x.id===id);document.getElementById('detail').textContent=`${id} · Status: ${s.status.toUpperCase()} · ${s.status==='available'?'Ready to reserve': 'Not available for reservation'}`;render()}
+function reserve(){let s=seats.find(x=>x.id===selected);if(s.status!=='available'){document.getElementById('reservationMsg').textContent='Kerusi ini tidak tersedia. Pilih kerusi hijau.';return} s.status='occupied';reservations.push(selected);activities.unshift(`Reservation demo · ${selected}`);document.getElementById('reservationMsg').textContent=`Demo: ${selected} reserved. (Status simulated)`;render()}
+function release(){let s=seats.find(x=>x.id===selected);s.status='available';reservations=reservations.filter(x=>x!==selected);activities.unshift(`Released demo seat · ${selected}`);document.getElementById('reservationMsg').textContent=`Demo: ${selected} released.`;render()}
+function changeStatus(){let s=seats.find(x=>x.id===selected);s.status=document.getElementById('statusSelect').value;activities.unshift(`Admin demo updated ${selected} → ${s.status}`);render();document.getElementById('detail').textContent=`${selected} · Status: ${s.status.toUpperCase()}`}
+function nav(btn,label){document.querySelectorAll('.topnav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');if(label==='Admin Panel')document.getElementById('admin').scrollIntoView({behavior:'smooth',block:'center'});else if(label==='Find a Seat')document.getElementById('seatmap').scrollIntoView({behavior:'smooth',block:'center'});else if(label==='My Reservations')document.getElementById('reservationMsg').textContent=reservations.length?`Demo reservations: ${reservations.join(', ')}`:'Tiada tempahan demo.';else window.scrollTo({top:0,behavior:'smooth'})}
+init();
+</script>
+</body></html>
