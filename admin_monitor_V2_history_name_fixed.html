@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IntelliSurface BITRIX — Admin Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#082b62;--blue:#0877c9;--bg:#f3f6fb;--green:#159447;--red:#d9233d;--yellow:#d99b16;--gray:#64748b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#17243a}
+header{background:linear-gradient(120deg,#082b62,#0877c9);color:white;padding:26px 5%;border-radius:0 0 24px 24px}
+header h1{margin:0;font-size:clamp(24px,4vw,38px)}header p{margin:5px 0 0;color:#d7eaff}
+main{max-width:1200px;margin:24px auto;padding:0 16px}.card{background:white;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 5px 22px #0b2b5510}
+h2{margin:0 0 14px;font-size:21px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,select,button{font:inherit;border-radius:10px;padding:12px 14px;border:1px solid #d6deea}
+input,select{background:#fff;min-width:180px;flex:1}button{border:0;background:var(--blue);color:white;font-weight:700;cursor:pointer}button.secondary{background:#64748b}button.danger{background:var(--red)}button:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.stat{padding:16px;background:#f5f9ff;border-radius:13px}.stat strong{display:block;font-size:26px;color:var(--navy)}
+.notice{padding:12px 14px;background:#eef5ff;border-radius:10px;margin:12px 0;white-space:pre-wrap}.notice.error{background:#fff0f1;color:#9f1239}.notice.ok{background:#ecfdf3;color:#166534}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e8edf4}th{background:#f6f8fc;color:#4b5b73}
+.pill{display:inline-block;padding:4px 9px;border-radius:99px;font-size:12px;font-weight:700;background:#e9eef5}.pill.reserved{background:#eee8ff;color:#6d28c7}.pill.occupied{background:#ffe5e8;color:#b42338}.pill.stale{background:#fff4d6;color:#956500}.pill.offline{background:#e2e8f0;color:#475569}.pill.available{background:#dcfce7;color:#166534}
+.small{font-size:13px;color:#64748b}.hidden{display:none}
+@media(max-width:600px){header{padding:22px 18px}.card{padding:15px}}
+</style></head><body>
+<header><h1>IntelliSurface <span style="color:#8be0ff">BITRIX</span></h1><p>Admin Seat Monitoring / Pemantauan Tempat Duduk Admin</p></header>
+<main>
+<section class="card" id="loginCard"><h2>Admin Login / Log Masuk Admin</h2>
+<p class="small">Masukkan Admin ID <b>AIU</b> dan password Admin.</p>
+<div class="row"><input id="adminId" type="text" placeholder="Admin ID (AIU)" autocomplete="username"><input id="password" type="password" placeholder="Password Admin" autocomplete="current-password"><button id="loginBtn">Login</button></div><div id="loginMsg" class="notice hidden"></div></section>
+<section id="dashboard" class="hidden">
+<div class="card"><div class="row" style="justify-content:space-between"><h2>Seat Status Overview / Ringkasan Status Seat</h2><div class="row"><button id="refreshBtn">Refresh</button><button class="secondary" id="logoutBtn">Logout</button></div></div>
+<div class="stats"><div class="stat">Available<strong id="nAvailable">—</strong></div><div class="stat">Reserved<strong id="nReserved">—</strong></div><div class="stat">Occupied<strong id="nOccupied">—</strong></div><div class="stat">Stale / Offline<strong id="nOther">—</strong></div></div><div id="msg" class="notice hidden"></div></div>
+<div class="card"><h2>Reservation Monitor / Pemantauan Tempahan</h2><div class="row"><input id="search" placeholder="Search seat / Student ID / nama"><select id="filter"><option value="all">All seats / Semua</option><option value="reserved">Reserved</option><option value="occupied">Occupied</option><option value="stale">Stale</option><option value="offline">Offline</option><option value="available">Available</option><option value="null">No active reservation / Tiada tempahan</option></select><button id="applyBtn">Filter</button></div>
+<p class="small">Seat tanpa reservation aktif dipaparkan dengan Student ID/nama sebagai —. Release hanya untuk seat Occupied/Reserved tanpa reservation aktif. Pastikan polisi RLS Admin telah dikonfigurasi.</p>
+<div class="tablewrap"><table><thead><tr><th>Seat ID</th><th>Floor</th><th>Seat Status</th><th>Student ID</th><th>Student Name</th><th>Reservation</th><th>Action</th></tr></thead><tbody id="tbody"><tr><td colspan="7">Login to load data.</td></tr></tbody></table></div></div></section>
+<section class="card"><h2>Reservation History / Sejarah Tempahan</h2>
+<p class="small">Semua rekod tempahan termasuk active, reserved dan cancelled.</p>
+<div style="overflow:auto"><table><thead><tr><th>Seat</th><th>Student ID</th><th>Student Name</th><th>Status Tempahan</th><th>Student UUID</th></tr></thead><tbody id="historyBody"><tr><td colspan="5">Login to load data.</td></tr></tbody></table></div></section>
+</main>
+<script>
+const SUPABASE_URL="https://snkirhyrmokpqsisruxw.supabase.co";
+const SUPABASE_KEY="sb_publishable_bgfquPefqNsGB7KC2PtBjg_Vf1f0c8A";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// Admin ID AIU is mapped to this Supabase Auth email. This email MUST belong to an existing Admin Auth account.
+const ADMIN_LOGIN_EMAIL="AIU26101020@student.aiu.edu.my";
+let rows=[];const $=id=>document.getElementById(id);
+function notice(el,t,type=""){el.textContent=t;el.className="notice "+type;el.classList.remove("hidden")}
+function hide(el){el.classList.add("hidden")}
+async function login(){hide($("loginMsg"));const adminId=$("adminId").value.trim().toUpperCase();if(adminId!=="AIU26101020"){notice($("loginMsg"),"Admin ID tidak sah. Sila masukkan AIU26101020.","error");return}$("loginBtn").disabled=true;const {error}=await db.auth.signInWithPassword({email:ADMIN_LOGIN_EMAIL,password:$("password").value});$("loginBtn").disabled=false;if(error){notice($("loginMsg"),"Login gagal. Pastikan akaun Admin AIU wujud dalam Supabase Auth dan password betul.","error");return}$("loginCard").classList.add("hidden");$("dashboard").classList.remove("hidden");await load()}
+async function load(){notice($("msg"),"Loading data…");try{
+const {data:seats,error:se}=await db.from("seats").select("seat_id,floor,status,reserved_by").order("seat_id");if(se)throw se;
+const {data:allReservations,error:re}=await db.from("reservations").select("seat_id,student_code,student_id,status").order("seat_id");if(re)throw re;
+const reservations=(allReservations||[]).filter(r=>["active","reserved"].includes(String(r.status||"").toLowerCase()));
+$("historyBody").innerHTML=(allReservations||[]).map(r=>{const st=(students||[]).find(x=>x.id===r.student_id)|| (students||[]).find(x=>x.student_code===r.student_code);return `<tr><td>${r.seat_id||"—"}</td><td>${r.student_code||st?.student_code||"—"}</td><td>${st?.full_name||"—"}</td><td>${r.status||"—"}</td><td>${r.student_id||"—"}</td></tr>`}).join("")||'<tr><td colspan="5">Tiada sejarah tempahan.</td></tr>';
+const codes=[...new Set((allReservations||[]).map(r=>r.student_code).filter(Boolean))];
+const studentIds=[...new Set((allReservations||[]).map(r=>r.student_id).filter(Boolean))];let students=[];
+let studentQuery=db.from("students").select("id,student_code,full_name");
+if(studentIds.length){const {data,error}=await studentQuery.in("id",studentIds);if(!error)students=data||[]}
+if(codes.length){const missing=codes.filter(c=>!students.some(st=>st.student_code===c));if(missing.length){const {data,error}=await db.from("students").select("id,student_code,full_name").in("student_code",missing);if(!error)students=[...students,...(data||[])];}}
+const getStudent=r=>students.find(st=>st.id===r?.student_id)||students.find(st=>st.student_code===r?.student_code);
+rows=(seats||[]).map(s=>{const r=(reservations||[]).find(x=>x.seat_id===s.seat_id);const st=getStudent(r);return {...s,student_code:r?.student_code||st?.student_code||null,full_name:st?.full_name||null,reservation_status:r?.status||null}});
+$("nAvailable").textContent=rows.filter(x=>x.status==="available").length;$("nReserved").textContent=rows.filter(x=>x.status==="reserved").length;$("nOccupied").textContent=rows.filter(x=>x.status==="occupied").length;$("nOther").textContent=rows.filter(x=>["stale","offline"].includes(x.status)).length;
+notice($("msg"),"Data refreshed successfully / Data berjaya dikemas kini","ok");render()
+}catch(e){notice($("msg"),"Load failed: "+(e.message||e),"error")}}
+function pill(status){const safe=String(status||"unknown").toLowerCase();const label=safe.charAt(0).toUpperCase()+safe.slice(1);return `<span class="pill ${safe}">${label}</span>`}
+function render(){const q=$("search").value.toLowerCase(),f=$("filter").value;const list=rows.filter(x=>(!q||[x.seat_id,x.student_code,x.full_name].some(v=>(v||"").toLowerCase().includes(q)))&&(f==="all"||x.status===f||(f==="null"&&!x.reservation_status)));
+$("tbody").innerHTML=list.map(x=>{const canRelease=!x.reservation_status&&["occupied","reserved"].includes(x.status);return `<tr><td><b>${x.seat_id}</b></td><td>${x.floor??"—"}</td><td>${pill(x.status)}</td><td>${x.student_code||"—"}</td><td>${x.full_name||"—"}</td><td>${x.reservation_status||"—"}</td><td>${canRelease?`<button class="danger" onclick="releaseSeat('${x.seat_id}')">Release / Available</button>`:"—"}</td></tr>`}).join("")||'<tr><td colspan="7">No records / Tiada rekod.</td></tr>'}
+async function releaseSeat(id){if(!confirm(`Release ${id} and set it to Available? / Kembalikan ${id} kepada Available?`))return;try{
+const {error}=await db.from("seats").update({status:"available",reserved_by:null,updated_at:new Date().toISOString()}).eq("seat_id",id).in("status",["occupied","reserved"]);if(error)throw error;notice($("msg"),`${id} set to Available. / ${id} dikembalikan kepada Available.`,"ok");await load()
+}catch(e){notice($("msg"),"Release failed: "+e.message,"error")}}
+$("loginBtn").onclick=login;$("refreshBtn").onclick=load;$("applyBtn").onclick=render;$("search").oninput=render;
+$("logoutBtn").onclick=async()=>{await db.auth.signOut();$("dashboard").classList.add("hidden");$("loginCard").classList.remove("hidden")};
+</script></body></html>
