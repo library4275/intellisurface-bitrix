@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ms"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IntelliSurface BITRIX — Student Records Admin V8</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#082b62;--blue:#0877c9;--bg:#f3f6fb;--green:#159447;--gray:#64748b;--red:#b42318;--amber:#a15c00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#17243a}
+header{background:linear-gradient(120deg,#082b62,#0877c9);color:white;padding:26px 5%;border-radius:0 0 24px 24px}
+h1{margin:0;font-size:clamp(24px,4vw,36px)}header p{margin:5px 0 0;color:#d7eaff}
+main{max-width:1200px;margin:24px auto;padding:0 16px}.card{background:white;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 5px 22px #0b2b5510}
+h2{margin:0 0 14px;font-size:21px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,select,button{font:inherit;border-radius:10px;padding:12px 14px;border:1px solid #d6deea}
+input,select{background:#fff;min-width:180px;flex:1}button{border:0;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#64748b}button.danger{background:#b42318}button.success{background:#159447}button:disabled{opacity:.6;cursor:wait}
+.notice{padding:12px 14px;background:#eef5ff;border-radius:10px;margin:12px 0;color:#23466e;overflow-wrap:anywhere}
+.notice.error{background:#fff0ef;color:#8a1c13}.notice.success{background:#eaf7ee;color:#176b35}.notice.warning{background:#fff7e8;color:#8a4b08}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.field{background:#f7f9fc;padding:14px;border-radius:12px}.field small{display:block;color:var(--gray);font-weight:600}.field strong{display:block;margin-top:5px;overflow-wrap:anywhere;font-size:17px}
+table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e6ebf2}th{background:#f5f8fc;color:#52627a;font-size:13px}
+.tablewrap{overflow:auto;border:1px solid #e6ebf2;border-radius:12px}.tag{display:inline-block;padding:4px 9px;border-radius:99px;background:#e9f7ee;color:#147a3a;font-size:12px;font-weight:700}
+.muted{color:#64748b;font-size:13px}.hidden{display:none}footer{text-align:center;padding:22px;color:#64748b}
+.diag{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:12px;border-radius:10px;color:#334155}
+.tempbox{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-top:14px}
+.tempvalue{font:700 18px ui-monospace,monospace;letter-spacing:.5px;background:white;border:1px dashed #86b99a;border-radius:9px;padding:13px;overflow-wrap:anywhere;user-select:all}
+@media(max-width:560px){.card{padding:16px}.row>*{width:100%}input,button{min-width:0}}
+</style></head>
+<body>
+<header><h1>IntelliSurface</h1><p>BITRIX · Student Records Admin / Pentadbir Rekod Pelajar · V8 Password Reset</p></header>
+<main>
+<section class="card" id="loginCard">
+<h2>🔐 Admin Login / Log Masuk Admin</h2>
+<div class="row">
+<label style="flex:1;min-width:220px">Admin ID / ID Admin<br><input value="AIU26101020" readonly style="width:100%;margin-top:6px"></label>
+<label style="flex:2;min-width:220px">Password / Kata Laluan<br><input id="adminPassword" type="password" placeholder="Enter Admin password / Masukkan kata laluan Admin" autocomplete="current-password" style="width:100%;margin-top:6px"></label>
+</div>
+<div class="row" style="margin-top:12px"><button id="loginBtn">Login / Log Masuk</button><button id="logoutBtn" class="secondary hidden">Logout / Log Keluar</button></div>
+<div class="notice" id="loginMessage">Sign in with Admin account AIU26101020. / Log masuk menggunakan akaun Admin AIU26101020.</div>
+<div id="sessionInfo" class="diag hidden"></div>
+</section>
+
+<section class="card hidden" id="searchCard">
+<h2>🔎 Student Search / Carian Pelajar</h2>
+<div class="row">
+<input id="studentCode" placeholder="Enter Student ID / Masukkan Student ID (e.g. AIU26101021)" autocomplete="off">
+<button id="searchBtn">Search Student / Cari Pelajar</button>
+<button id="clearBtn" class="secondary">Reset / Kosongkan</button>
+</div>
+<div class="notice" id="message">Enter Student ID to retrieve student records. / Masukkan Student ID untuk mendapatkan rekod pelajar.</div>
+<div id="debugInfo" class="diag hidden"></div>
+</section>
+
+<section class="card hidden" id="statusCard">
+<h2>Registration Status / Status Pendaftaran</h2>
+<div id="statusBadge" class="notice"></div>
+<p class="muted" id="statusDescription"></p>
+</section>
+
+<section class="card hidden" id="profileCard">
+<h2>Student Details / Maklumat Pelajar</h2>
+<div class="grid">
+<div class="field"><small>Student ID / ID Pelajar</small><strong id="codeOut">—</strong></div>
+<div class="field"><small>Student Name / Nama Pelajar</small><strong id="nameOut">—</strong></div>
+<div class="field"><small>University Email / Emel Universiti</small><strong id="emailOut">—</strong></div>
+<div class="field"><small>Student UUID / UUID Pelajar</small><strong id="uuidOut">—</strong></div>
+</div>
+</section>
+
+<section class="card hidden" id="resetCard">
+<h2>🔑 Admin Password Reset / Tetapan Semula Kata Laluan</h2>
+<p class="muted">Gunakan fungsi ini selepas mengesahkan identiti pelajar. Sistem akan menjana kata laluan sementara secara automatik. Pelajar perlu menukarnya selepas log masuk.</p>
+<div class="notice warning">Peringatan: Pastikan identiti pelajar disahkan secara berasingan sebelum reset. Kata laluan sementara hanya dipaparkan sekali pada skrin ini. Serahkan secara peribadi kepada pelajar.</div>
+<button id="resetPasswordBtn" class="danger">Generate Temporary Password / Jana Kata Laluan Sementara</button>
+<div id="resetMessage" class="notice hidden"></div>
+<div id="temporaryPasswordBox" class="tempbox hidden">
+<strong>Temporary Password / Kata Laluan Sementara</strong>
+<p id="temporaryStudentInfo" class="muted"></p>
+<div id="temporaryPassword" class="tempvalue"></div>
+<div class="row" style="margin-top:10px">
+<button id="copyTemporaryPassword" class="success">Copy Password / Salin Kata Laluan</button>
+<button id="hideTemporaryPassword" class="secondary">Hide / Sembunyikan</button>
+</div>
+<p class="muted">Jangan simpan atau hantar kata laluan ini melalui saluran awam. Minta pelajar log masuk dan terus menetapkan kata laluan baharu.</p>
+</div>
+</section>
+
+<section class="card hidden" id="historyCard">
+<h2>Reservation History / Sejarah Tempahan</h2>
+<div class="tablewrap"><table><thead><tr><th>Seat ID / ID Tempat Duduk</th><th>Status / Status</th><th>Student ID / ID Pelajar</th><th>Student UUID / UUID Pelajar</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+<p class="muted">Records view only. No edit, cancel or release actions. / Paparan rekod sahaja. Tiada tindakan edit, cancel atau release.</p>
+</section>
+</main><footer>IntelliSurface · BITRIX · Supabase · V8 Password Reset</footer>
+
+<script>
+const SUPABASE_URL = "https://snkirhyrmokpqsisruxw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bgfquPefqNsGB7KC2PtBjg_Vf1f0c8A";
+const ADMIN_EMAIL = "AIU26101020@student.aiu.edu.my";
+const sb = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let currentStudentCode=null,currentStudentName=null,currentStudentEmail=null;
+function setNotice(el,text,type=""){el.textContent=text;el.className="notice"+(type?" "+type:"")}
+function esc(v){return String(v??"—").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function errorText(e){if(!e)return "No error returned";return [e.message,e.details,e.hint,e.code].filter(Boolean).join(" | ")}
+async function updateAuthUI(){
+ const {data,error}=await sb.auth.getSession();
+ const session=data?.session||null,logged=!!session;
+ $("searchCard").classList.toggle("hidden",!logged);
+ $("profileCard").classList.add("hidden");$("historyCard").classList.add("hidden");$("statusCard").classList.add("hidden");$("resetCard").classList.add("hidden");
+ $("loginBtn").classList.toggle("hidden",logged);
+ $("adminPassword").classList.toggle("hidden",logged);
+ $("logoutBtn").classList.toggle("hidden",!logged);
+ $("loginMessage").textContent=logged
+  ? "Signed in. / Berjaya log masuk. Emel sesi: "+(session.user?.email||"tiada emel")
+  : "Sign in with Admin account AIU26101020. / Log masuk menggunakan akaun Admin AIU26101020.";
+ $("sessionInfo").classList.toggle("hidden",!logged);
+ if(logged){
+   $("sessionInfo").textContent="SESSION DIAGNOSTIC\nuser.id: "+(session.user?.id||"NULL")+"\nuser.email: "+(session.user?.email||"NULL")+"\naccess token present: "+!!session.access_token+"\ngetSession error: "+errorText(error);
+ }else if(error){$("loginMessage").textContent+=" Session error: "+errorText(error)}
+}
+async function adminLogin(){
+ const password=$("adminPassword").value;
+ if(!password){$("loginMessage").textContent="Enter Admin password. / Masukkan kata laluan Admin.";return}
+ $("loginBtn").disabled=true;
+ const {data,error}=await sb.auth.signInWithPassword({email:ADMIN_EMAIL,password});
+ $("loginBtn").disabled=false;
+ if(error){setNotice($("loginMessage"),"Login failed: "+errorText(error)+" / Log masuk gagal.","error");return}
+ $("adminPassword").value="";
+ await updateAuthUI();
+}
+async function adminLogout(){
+ await sb.auth.signOut();
+ currentStudentCode=null;currentStudentName=null;currentStudentEmail=null;
+ $("temporaryPasswordBox").classList.add("hidden");
+ await updateAuthUI();
+}
+async function search(){
+ const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+ const session=sessionData?.session;
+ if(!session){setNotice($("message"),"Admin login required. / Admin perlu log masuk. "+errorText(sessionError),"error");return}
+ const code=$("studentCode").value.trim().toUpperCase();
+ $("profileCard").classList.add("hidden");$("historyCard").classList.add("hidden");$("statusCard").classList.add("hidden");$("resetCard").classList.add("hidden");$("debugInfo").classList.add("hidden");
+ $("temporaryPasswordBox").classList.add("hidden");$("resetMessage").classList.add("hidden");
+ currentStudentCode=null;currentStudentName=null;currentStudentEmail=null;
+ if(!/^AIU\d{6,}$/.test(code)){setNotice($("message"),"Please enter a valid Student ID (e.g. AIU26101021). / Sila masukkan Student ID yang sah.","error");return}
+ $("searchBtn").disabled=true;$("searchBtn").textContent="Mencari…";setNotice($("message"),"Searching records for / Sedang mencari rekod "+code+"…");
+ const debug=[];
+ try{
+  debug.push("SESSION EMAIL: "+(session.user?.email||"NULL"));
+  debug.push("SESSION USER ID: "+(session.user?.id||"NULL"));
+  const {data:reservations,error:rErr}=await sb.from("reservations").select("seat_id,status,student_code,student_id").eq("student_code",code).order("id",{ascending:false});
+  debug.push("RESERVATIONS: "+(rErr?"ERROR: "+errorText(rErr):"OK ("+(reservations?.length||0)+" rows)"));
+  const {data:profiles,error:pErr}=await sb.from("students").select("id,full_name,student_code,university_email").eq("student_code",code).limit(1);
+  debug.push("STUDENTS BY student_code: "+(pErr?"ERROR: "+errorText(pErr):"OK ("+(profiles?.length||0)+" rows)"));
+  let profile=profiles?.[0]||null;
+  let idErr=null;
+  if(!profile && reservations?.length && reservations[0].student_id){
+    const {data:byId,error}=await sb.from("students").select("id,full_name,student_code,university_email").eq("id",reservations[0].student_id).limit(1);
+    idErr=error;profile=byId?.[0]||null;
+    debug.push("STUDENTS BY reservation UUID: "+(error?"ERROR: "+errorText(error):"OK ("+(byId?.length||0)+" rows)"));
+  }
+  if(rErr)debug.push("RESERVATION ERROR DETAIL: "+errorText(rErr));
+  if(pErr)debug.push("PROFILE ERROR DETAIL: "+errorText(pErr));
+  if(idErr)debug.push("UUID LOOKUP ERROR DETAIL: "+errorText(idErr));
+  $("debugInfo").textContent=debug.join("\n");$("debugInfo").classList.remove("hidden");
+  if(rErr && pErr) {setNotice($("message"),"Kedua-dua carian gagal. Rujuk butiran ralat di bawah. / Both queries failed. See diagnostics below.","error");return;}
+  const reservationCount=reservations?.length||0;
+  let statusTitle="",statusDetail="",statusType="";
+  if(profile&&reservationCount>0){statusTitle="Berdaftar · Mempunyai tempahan / Registered · Has reservations";statusDetail="Profil pelajar wujud dan sejarah tempahan ditemui. / Student profile and reservation history found.";statusType="success";}
+  else if(profile&&reservationCount===0){statusTitle="Berdaftar · Belum membuat tempahan / Registered · No reservations yet";statusDetail="Profil pelajar wujud, tetapi tiada rekod tempahan. / Student profile exists, but no reservation records were found.";statusType="success";}
+  else if(!profile&&reservationCount>0){statusTitle="Ada rekod tempahan · Profil tidak ditemui / Reservation found · Profile missing";statusDetail="Tempahan wujud, tetapi profil dalam jadual students tidak ditemui. Semak pendaftaran atau pautan profil. / Reservations exist, but no matching students profile was found.";statusType="error";}
+  else{statusTitle="Belum berdaftar / No student record found";statusDetail="Tiada profil dalam jadual students dan tiada tempahan ditemui untuk ID ini. / No student profile or reservation was found for this ID.";statusType="error";}
+  $("statusBadge").textContent=statusTitle;$("statusBadge").className="notice "+statusType;$("statusDescription").textContent=statusDetail;$("statusCard").classList.remove("hidden");
+  if(!profile&&reservationCount===0){setNotice($("message"),"Tiada rekod pelajar atau tempahan ditemui untuk "+code+". / No student or reservation records found.","error");return;}
+  $("codeOut").textContent=profile?.student_code||code;
+  const fullName=profile?.full_name||"";
+  $("nameOut").textContent=fullName&&fullName.trim().toUpperCase()!==code?fullName:(profile?"Nama belum diisi / Name not provided":"Profil tidak dapat dibaca — semak diagnostics di bawah.");
+  $("emailOut").textContent=profile?.university_email||"Profil tidak dapat dibaca — semak diagnostics di bawah.";
+  $("uuidOut").textContent=profile?.id||reservations?.[0]?.student_id||"—";
+  $("profileCard").classList.remove("hidden");
+  $("historyBody").innerHTML=(reservations||[]).map(r=>`<tr><td>${esc(r.seat_id)}</td><td><span class="tag">${esc(r.status)}</span></td><td>${esc(r.student_code||code)}</td><td>${esc(r.student_id)}</td></tr>`).join("")||'<tr><td colspan="4">No reservation records. / Tiada rekod tempahan.</td></tr>';
+  $("historyCard").classList.remove("hidden");
+  if(profile){
+    currentStudentCode=profile.student_code||code;currentStudentName=profile.full_name||"Nama belum diisi";currentStudentEmail=profile.university_email||"";
+    $("resetCard").classList.remove("hidden");
+    setNotice($("message"),"Rekod pelajar berjaya dibaca. / Student profile loaded successfully.","success");
+  }else setNotice($("message"),"Sejarah tempahan dipaparkan, tetapi profil tidak ditemui. / Reservation history shown; profile unavailable.","error");
+ }catch(e){
+  debug.push("UNEXPECTED ERROR: "+errorText(e));$("debugInfo").textContent=debug.join("\n");$("debugInfo").classList.remove("hidden");
+  setNotice($("message"),"Gagal mendapatkan data: "+errorText(e),"error");
+ }finally{$("searchBtn").disabled=false;$("searchBtn").textContent="Search Student / Cari Pelajar"}
+}
+async function resetStudentPassword(){
+ if(!currentStudentCode){setNotice($("resetMessage"),"Cari rekod pelajar yang berdaftar dahulu.","error");$("resetMessage").classList.remove("hidden");return;}
+ const confirmed=confirm("Sahkan identiti pelajar terlebih dahulu.\n\nJana kata laluan sementara untuk "+currentStudentCode+"?\n\nTindakan ini akan menggantikan kata laluan semasa pelajar.");
+ if(!confirmed)return;
+ $("resetPasswordBtn").disabled=true;$("resetPasswordBtn").textContent="Sedang menjana…";
+ $("temporaryPasswordBox").classList.add("hidden");$("resetMessage").classList.remove("hidden");
+ setNotice($("resetMessage"),"Menghubungi fungsi reset kata laluan…");
+ try{
+   const {data,error}=await sb.functions.invoke("admin-reset-student-password",{body:{student_code:currentStudentCode}});
+   if(error){
+     let detail=error.message||"Function invocation failed";
+     try{const ctx=error.context;if(ctx&&typeof ctx.json==="function"){const body=await ctx.json();if(body?.error)detail=body.error;}}catch(_){}
+     setNotice($("resetMessage"),"Reset gagal: "+detail+" / Password reset failed.","error");return;
+   }
+   if(!data?.success||!data?.temporary_password){
+     setNotice($("resetMessage"),"Reset gagal: "+(data?.error||"Respons fungsi tidak lengkap."),"error");return;
+   }
+   $("temporaryStudentInfo").textContent=(data.student_name||currentStudentName||currentStudentCode)+" · "+(data.student_email||currentStudentEmail||"");
+   $("temporaryPassword").textContent=data.temporary_password;
+   $("temporaryPasswordBox").classList.remove("hidden");
+   setNotice($("resetMessage"),"Berjaya. Kata laluan sementara telah dijana. Serahkan secara peribadi kepada pelajar.","success");
+ }catch(e){
+   setNotice($("resetMessage"),"Ralat: "+errorText(e),"error");
+ }finally{
+   $("resetPasswordBtn").disabled=false;$("resetPasswordBtn").textContent="Generate Temporary Password / Jana Kata Laluan Sementara";
+ }
+}
+$("loginBtn").addEventListener("click",adminLogin);
+$("adminPassword").addEventListener("keydown",e=>{if(e.key==="Enter")adminLogin()});
+$("logoutBtn").addEventListener("click",adminLogout);
+sb.auth.onAuthStateChange(()=>{setTimeout(updateAuthUI,0)});
+updateAuthUI();
+$("searchBtn").addEventListener("click",search);
+$("studentCode").addEventListener("keydown",e=>{if(e.key==="Enter")search()});
+$("clearBtn").addEventListener("click",()=>{$("studentCode").value="";$("profileCard").classList.add("hidden");$("historyCard").classList.add("hidden");$("statusCard").classList.add("hidden");$("resetCard").classList.add("hidden");$("debugInfo").classList.add("hidden");$("temporaryPasswordBox").classList.add("hidden");$("resetMessage").classList.add("hidden");currentStudentCode=null;currentStudentName=null;currentStudentEmail=null;setNotice($("message"),"Enter Student ID to retrieve student records. / Masukkan Student ID untuk mendapatkan rekod pelajar.");$("studentCode").focus()});
+$("resetPasswordBtn").addEventListener("click",resetStudentPassword);
+$("copyTemporaryPassword").addEventListener("click",async()=>{
+ const value=$("temporaryPassword").textContent;
+ try{await navigator.clipboard.writeText(value);$("copyTemporaryPassword").textContent="Copied / Disalin";}
+ catch(_){const range=document.createRange();range.selectNodeContents($("temporaryPassword"));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);setNotice($("resetMessage"),"Pilih teks kata laluan dan salin secara manual. / Select and copy the password manually.","warning");}
+});
+$("hideTemporaryPassword").addEventListener("click",()=>{$("temporaryPasswordBox").classList.add("hidden");$("temporaryPassword").textContent="";$("copyTemporaryPassword").textContent="Copy Password / Salin Kata Laluan";});
+</script></body></html>
