@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IntelliSurface | Admin Approval</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#082b62;--blue:#0877c9;--bg:#f2f6fc;--ink:#17243a;--muted:#64748b;--green:#168548;--red:#b42318;--line:#e4ebf4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:linear-gradient(120deg,#071f49,#0877c9);color:#fff;padding:28px max(5%,calc((100% - 1120px)/2));box-shadow:0 8px 25px #082b6222}
+.brand{font-size:13px;letter-spacing:2px;color:#c9e5ff;font-weight:800}h1{font-size:clamp(25px,4vw,36px);margin:5px 0}header p{margin:0;color:#dceeff}
+main{max-width:1120px;margin:26px auto;padding:0 16px}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 8px 26px #082b6209}
+h2{margin:0 0 6px;font-size:21px}.muted{color:var(--muted);margin:0 0 16px;font-size:13px}
+input,button{font:inherit;border-radius:11px;padding:12px 14px}input{width:100%;border:1px solid #cfd9e7;margin:6px 0 12px}button{border:0;background:var(--blue);color:#fff;font-weight:750;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.secondary{background:#64748b}.approve{background:var(--green)}.reject{background:var(--red)}
+.loginrow{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}.loginrow label{font-size:13px;font-weight:700}
+.notice{padding:12px 14px;border-radius:11px;background:#eef5ff;color:#23466e;margin-top:12px;overflow-wrap:anywhere}.notice.error{background:#fff0ef;color:#8a1c13}.notice.success{background:#eaf7ee;color:#176b35}
+.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.stat{padding:16px;border:1px solid var(--line);border-radius:14px;background:#fbfdff}.stat small{display:block;color:var(--muted);font-weight:700}.stat strong{font-size:28px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px}table{width:100%;border-collapse:collapse;min-width:720px}th,td{text-align:left;padding:13px;border-bottom:1px solid var(--line);vertical-align:middle}th{background:#f5f8fc;color:#52627a;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.status{display:inline-block;padding:4px 9px;border-radius:99px;font-size:12px;font-weight:800;background:#fff4dc;color:#955900}.status.APPROVED{background:#e7f7ed;color:#16733b}.status.REJECTED{background:#ffeded;color:#a52620}
+.actions{display:flex;gap:7px}.actions button{padding:8px 11px;font-size:13px}footer{text-align:center;color:var(--muted);padding:20px;font-size:13px}
+@media(max-width:680px){.loginrow{grid-template-columns:1fr}.loginrow button{width:100%}.card{padding:17px}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:23px}}
+</style>
+</head>
+<body>
+<header><div class="brand">BITRIX · AIU</div><h1>IntelliSurface</h1><p>Admin Approval Dashboard · Pengurusan Kelulusan Pendaftaran Pelajar</p></header>
+<main>
+<section class="card" id="loginCard">
+<h2>Admin Login / Log Masuk Pentadbir</h2>
+<p class="muted">Log masuk menggunakan akaun pentadbir sedia ada. / Use the existing administrator account.</p>
+<div class="loginrow">
+<label>Admin ID<input value="AIU26101020" readonly></label>
+<label>Password / Kata Laluan<input id="password" type="password" placeholder="Masukkan kata laluan Admin" autocomplete="current-password"></label>
+<button id="loginBtn">Log Masuk</button>
+</div>
+<div class="toolbar"><span id="loginStatus" class="muted">Akses khas untuk Admin AIU26101020.</span><button id="logoutBtn" class="secondary hidden">Log Keluar</button></div>
+<div id="loginNotice" class="notice">Sila log masuk untuk melihat permohonan pendaftaran.</div>
+</section>
+<section class="card hidden" id="dashboard">
+<h2>Student Registration Requests</h2>
+<p class="muted">Semak maklumat pelajar dan buat keputusan. Kelulusan akan mencipta profil pelajar dalam jadual <b>students</b>.</p>
+<div class="stats">
+<div class="stat"><small>PENDING / MENUNGGU</small><strong id="pendingCount">0</strong></div>
+<div class="stat"><small>APPROVED / DILULUSKAN</small><strong id="approvedCount">0</strong></div>
+<div class="stat"><small>REJECTED / DITOLAK</small><strong id="rejectedCount">0</strong></div>
+</div>
+<div class="toolbar"><span class="muted" id="listSummary">Senarai permohonan</span><button id="refreshBtn" class="secondary">↻ Refresh / Muat Semula</button></div>
+<div id="requestNotice" class="notice">Memuatkan permohonan…</div>
+<div class="tablewrap"><table>
+<thead><tr><th>Nama Pelajar</th><th>Student ID</th><th>Emel Universiti</th><th>Tarikh</th><th>Status</th><th>Tindakan</th></tr></thead>
+<tbody id="requestRows"><tr><td colspan="6">Tiada data.</td></tr></tbody>
+</table></div>
+</section>
+</main>
+<footer>IntelliSurface · BITRIX · Albukhary International University</footer>
+<script>
+const SUPABASE_URL="https://snkirhyrmokpqsisruxw.supabase.co";
+const SUPABASE_KEY="sb_publishable_bgfquPefqNsGB7KC2PtBjg_Vf1f0c8A";
+const ADMIN_EMAIL="AIU26101020@student.aiu.edu.my";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const el=id=>document.getElementById(id);
+function notice(id,msg,type=""){el(id).textContent=msg;el(id).className="notice"+(type?" "+type:"")}
+function esc(v){return String(v??"—").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function dateText(v){return v?new Date(v).toLocaleString("ms-MY"):"—"}
+async function syncSession(){
+ const {data,error}=await db.auth.getSession();const s=data?.session;
+ const allowed=!!s&&s.user?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase();
+ el("dashboard").classList.toggle("hidden",!allowed);
+ el("loginBtn").classList.toggle("hidden",!!s);
+ el("password").classList.toggle("hidden",!!s);
+ el("logoutBtn").classList.toggle("hidden",!s);
+ el("loginStatus").textContent=allowed?"Admin AIU26101020 telah log masuk.":s?"Akaun ini bukan Admin AIU26101020.":"Akses khas untuk Admin AIU26101020.";
+ if(s&&!allowed){await db.auth.signOut();notice("loginNotice","Akses ditolak. Sila gunakan akaun Admin AIU26101020.","error");return}
+ if(allowed){notice("loginNotice","Log masuk berjaya. Anda boleh mengurus permohonan pelajar.","success");await loadRequests()}
+ else if(error)notice("loginNotice",error.message,"error");
+}
+async function login(){
+ const password=el("password").value;if(!password){notice("loginNotice","Sila masukkan kata laluan Admin.","error");return}
+ el("loginBtn").disabled=true;
+ const {error}=await db.auth.signInWithPassword({email:ADMIN_EMAIL,password});
+ el("loginBtn").disabled=false;
+ if(error){notice("loginNotice","Log masuk gagal: "+error.message,"error");return}
+ el("password").value="";await syncSession();
+}
+async function logout(){await db.auth.signOut();await syncSession();notice("loginNotice","Anda telah log keluar.","success")}
+async function loadRequests(){
+ const {data:sessionData}=await db.auth.getSession();const s=sessionData?.session;
+ if(!s||s.user?.email?.toLowerCase()!==ADMIN_EMAIL.toLowerCase()){notice("requestNotice","Sila log masuk menggunakan akaun Admin yang betul.","error");return}
+ el("refreshBtn").disabled=true;notice("requestNotice","Sedang memuatkan permohonan…");
+ try{
+  const {data,error}=await db.from("student_registration_requests").select("id,user_id,full_name,student_code,university_email,status,created_at").order("created_at",{ascending:false});
+  if(error)throw error;const rows=data||[];
+  const count=status=>rows.filter(r=>String(r.status).toUpperCase()===status).length;
+  el("pendingCount").textContent=count("PENDING");el("approvedCount").textContent=count("APPROVED");el("rejectedCount").textContent=count("REJECTED");
+  el("listSummary").textContent=rows.length+" permohonan direkodkan";
+  el("requestRows").innerHTML=rows.map(r=>{
+   const status=String(r.status||"").toUpperCase();const pending=status==="PENDING";
+   const action=pending?`<div class="actions"><button class="approve" data-action="APPROVED" data-id="${esc(r.id)}">Approve</button><button class="reject" data-action="REJECTED" data-id="${esc(r.id)}">Reject</button></div>`:"—";
+   return `<tr><td><b>${esc(r.full_name)}</b></td><td>${esc(r.student_code)}</td><td>${esc(r.university_email)}</td><td>${esc(dateText(r.created_at))}</td><td><span class="status ${esc(status)}">${esc(status)}</span></td><td>${action}</td></tr>`;
+  }).join("")||'<tr><td colspan="6">Belum ada permohonan pendaftaran.</td></tr>';
+  notice("requestNotice","Berjaya memuatkan "+rows.length+" permohonan.","success");
+ }catch(e){notice("requestNotice","Gagal memuatkan permohonan: "+e.message,"error")}
+ finally{el("refreshBtn").disabled=false}
+}
+async function review(id,decision){
+ const word=decision==="APPROVED"?"LULUSKAN":"TOLAK";
+ if(!confirm("Anda pasti mahu "+word+" permohonan ini?"))return;
+ document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(b=>b.disabled=true);
+ notice("requestNotice","Sedang memproses keputusan…");
+ try{
+  const {data,error}=await db.rpc("admin_review_student_registration",{p_request_id:id,p_decision:decision});
+  if(error)throw error;
+  notice("requestNotice",decision==="APPROVED"?"Permohonan diluluskan. Profil pelajar telah dimasukkan ke jadual students.":"Permohonan telah ditolak.","success");
+  await loadRequests();
+ }catch(e){notice("requestNotice","Keputusan gagal diproses: "+e.message,"error");document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(b=>b.disabled=false)}
+}
+el("loginBtn").addEventListener("click",login);el("logoutBtn").addEventListener("click",logout);el("refreshBtn").addEventListener("click",loadRequests);
+el("password").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+el("requestRows").addEventListener("click",e=>{const b=e.target.closest("button[data-action]");if(b)review(b.dataset.id,b.dataset.action)});
+db.auth.onAuthStateChange(()=>{setTimeout(syncSession,0)});
+syncSession();
+</script>
+</body></html>
