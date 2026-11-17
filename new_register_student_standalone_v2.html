@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#082b62">
+<title>IntelliSurface BITRIX | New Student Registration</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#082b62;--blue:#0877c9;--cyan:#19a9d5;--ink:#17243a;--muted:#64748b;--line:#dce6f1}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:22px;font-family:Inter,"Segoe UI",Arial,sans-serif;color:var(--ink);background:radial-gradient(circle at 12% 8%,#d9f1ff 0,transparent 32%),linear-gradient(145deg,#f7faff,#eaf1fa)}
+.wrap{width:min(100%,760px);margin:0 auto}
+header{padding:28px clamp(22px,5vw,40px);color:#fff;background:linear-gradient(120deg,var(--navy),var(--blue));border-radius:22px 22px 0 0;box-shadow:0 14px 35px #082b6220}
+h1{margin:0;font-size:clamp(27px,5vw,36px);letter-spacing:-.6px}
+h1 span{color:#78e5ff}
+header p{margin:8px 0 0;color:#dceeff;font-size:14px}
+main{padding:clamp(22px,5vw,38px);background:#fff;border:1px solid #e0e9f4;border-top:0;border-radius:0 0 22px 22px;box-shadow:0 18px 45px #082b6218}
+h2{margin:0 0 8px;font-size:clamp(22px,4vw,28px)}
+.lead{margin:0 0 24px;color:var(--muted);line-height:1.6}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.full{grid-column:1/-1}
+label{font-size:14px;font-weight:700;color:#263b59}
+input{width:100%;min-height:49px;padding:13px 14px;border:1px solid var(--line);border-radius:11px;background:#fbfdff;color:var(--ink);font:inherit;outline:none}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #0877c91a}
+.hint{color:var(--muted);font-size:12px;line-height:1.45}
+button{width:100%;min-height:54px;margin-top:22px;padding:14px 18px;border:0;border-radius:12px;color:#fff;font-size:16px;font-weight:750;background:linear-gradient(100deg,#0877c9,#12a5d2);box-shadow:0 8px 20px #0877c933;cursor:pointer}
+button:disabled{opacity:.65;cursor:wait}
+.message{display:none;margin-top:16px;padding:13px 15px;border-radius:11px;line-height:1.5;overflow-wrap:anywhere}
+.message.show{display:block}
+.message.info{background:#eef5ff;color:#23466e}
+.message.ok{background:#eaf7ee;color:#176b35}
+.message.err{background:#fff0ef;color:#8a1c13}
+footer{text-align:center;padding:18px;color:#8090a5;font-size:12px}
+@media(max-width:580px){body{padding:13px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}header{border-radius:18px 18px 0 0}main{border-radius:0 0 18px 18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>IntelliSurface <span>BITRIX</span></h1>
+  <p>New Student Registration · Albukhary International University</p>
+</header>
+<main>
+  <h2>New Student Registration</h2>
+  <p class="lead">Submit your details for administrator approval before using IntelliSurface. / Hantar maklumat anda untuk kelulusan pentadbir sebelum menggunakan IntelliSurface.</p>
+  <form id="registrationForm">
+    <div class="form-grid">
+      <div class="field full">
+        <label for="fullName">Full Name / Nama Penuh</label>
+        <input id="fullName" name="fullName" type="text" autocomplete="name" placeholder="Enter your full name / Masukkan nama penuh" required>
+      </div>
+      <div class="field">
+        <label for="studentId">Student ID / ID Pelajar</label>
+        <input id="studentId" name="studentId" type="text" placeholder="e.g. AIU26101021" autocomplete="username" required>
+        <span class="hint">Use your official AIU Student ID.</span>
+      </div>
+      <div class="field">
+        <label for="email">AIU Student Email / Emel Pelajar</label>
+        <input id="email" name="email" type="email" placeholder="yourID@student.aiu.edu.my" autocomplete="email" required>
+        <span class="hint">Email must match your Student ID.</span>
+      </div>
+      <div class="field">
+        <label for="password">Create Password / Cipta Kata Laluan</label>
+        <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required>
+      </div>
+      <div class="field">
+        <label for="confirmPassword">Confirm Password / Sahkan Kata Laluan</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Re-enter your password" required>
+      </div>
+    </div>
+    <button id="submitBtn" type="submit">Submit Registration / Hantar Pendaftaran</button>
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+  </form>
+</main>
+<footer>IntelliSurface · BITRIX</footer>
+</div>
+<script>
+const SUPABASE_URL = "https://snkirhyrmokpqsisruxw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bgfquPefqNsGB7KC2PtBjg_Vf1f0c8A";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const form = document.getElementById("registrationForm");
+const submitBtn = document.getElementById("submitBtn");
+const message = document.getElementById("message");
+
+function showMessage(text, type) {
+  message.textContent = text;
+  message.className = "message show " + type;
+}
+
+function normalizeStudentId(value) {
+  return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const fullName = document.getElementById("fullName").value.trim();
+  const studentId = normalizeStudentId(document.getElementById("studentId").value);
+  const email = document.getElementById("email").value.trim().toLowerCase();
+  const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+
+  if (!/^AIU\d{6,}$/.test(studentId)) {
+    showMessage("Please enter a valid AIU Student ID. / Sila masukkan ID Pelajar AIU yang sah.", "err");
+    return;
+  }
+  if (email !== (studentId + "@student.aiu.edu.my").toLowerCase()) {
+    showMessage("The email must match your Student ID: " + studentId + "@student.aiu.edu.my", "err");
+    return;
+  }
+  if (password.length < 8) {
+    showMessage("Password must contain at least 8 characters. / Kata laluan mesti sekurang-kurangnya 8 aksara.", "err");
+    return;
+  }
+  if (password !== confirmPassword) {
+    showMessage("Passwords do not match. / Kata laluan tidak sepadan.", "err");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting… / Sedang menghantar…";
+  showMessage("Creating your account… / Sedang mencipta akaun…", "info");
+
+  try {
+    const { data, error } = await db.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          student_code: studentId,
+          full_name: fullName,
+          role: "student",
+          registration_status: "pending"
+        }
+      }
+    });
+
+    if (error) throw error;
+
+    if (!data.user) {
+      throw new Error("Supabase did not return a user account. Please try again.");
+    }
+
+    // The registration request is stored separately.
+    // Do NOT create a row in public.students until the existing Admin approves it.
+    const { error: requestError } = await db
+      .from("student_registration_requests")
+      .insert({
+        user_id: data.user.id,
+        full_name: fullName,
+        student_code: studentId,
+        university_email: email,
+        status: "PENDING"
+      });
+
+    if (requestError) {
+      throw new Error(
+        "Your login account was created, but the application could not be saved: " +
+        requestError.message +
+        ". Please contact the administrator. Do not register again with a different email."
+      );
+    }
+
+    form.reset();
+    showMessage(
+      "Application submitted successfully. Your registration is PENDING and will be reviewed by the administrator. / Permohonan berjaya dihantar. Pendaftaran anda sedang MENUNGGU kelulusan pentadbir.",
+      "ok"
+    );
+  } catch (error) {
+    showMessage("Registration failed / Pendaftaran gagal: " + (error.message || "Unknown error"), "err");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit Registration / Hantar Pendaftaran";
+  }
+});
+</script>
+</body>
+</html>
